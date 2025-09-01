@@ -1,22 +1,15 @@
-// /api/verify.js
-import jwt from "jsonwebtoken";
-import { Redis } from "@upstash/redis";
-import fetch from "cross-fetch";
-
-// Inicializa Redis con env vars de Vercel
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_URL,
-  token: process.env.UPSTASH_REDIS_TOKEN,
-});
-
-// Endpoint principal
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Método no permitido" });
   }
 
   try {
-    const body = req.body;
+    const body = req.body || {};
+
+    // Si no trae payload, abortamos aquí
+    if (!body.nullifier_hash) {
+      return res.status(400).json({ ok: false, error: "Payload vacío o inválido" });
+    }
 
     // 1. Validar con la API de Worldcoin
     const verifyRes = await fetch("https://developer.worldcoin.org/api/v1/verify", {
@@ -27,9 +20,9 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         app_id: process.env.WORLD_ID_APP_ID,
-        action: body.action, // viene del frontend
-        signal: body.nullifier_hash, // se usa para evitar duplicados
-        proof: body.proof,          // payload completo
+        action: body.action || "worldgold",
+        signal: body.nullifier_hash,
+        proof: body.proof || {},
       }),
     });
 
@@ -39,24 +32,17 @@ export default async function handler(req, res) {
     }
 
     const userId = body.nullifier_hash;
-    // 2. Estado inicial del usuario (puedes ajustar valores iniciales)
-    const initialState = {
-      wld: 0,
-      wlgp: 0,
-      energy: 100,
-    };
 
-    // 3. Guardar estado en Redis
-    await redis.set(`user:${userId}`, initialState);
+    // 2. Estado inicial del usuario
+    const initialState = { wld: 0, wlgp: 0, energy: 100 };
 
-    // 4. Generar SESSION_TOKEN firmado
+    // 3. Guardar en Redis (como string)
+    await redis.set(`user:${userId}`, JSON.stringify(initialState));
+
+    // 4. Generar token firmado
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-    return res.status(200).json({
-      ok: true,
-      token,
-      state: initialState,
-    });
+    return res.status(200).json({ ok: true, token, state: initialState });
   } catch (err) {
     console.error("Verify error:", err);
     return res.status(500).json({ ok: false, error: "Error interno" });
