@@ -18,14 +18,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Validar body de forma segura
-    let token, taps;
-    try {
-      ({ token, taps } = req.body || {});
-    } catch (e) {
-      return res.status(400).json({ ok: false, error: "Body inválido" });
+    // Forzar a parsear body en caso que venga string
+    let body = req.body;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        return res.status(400).json({ ok: false, error: "Body inválido (no JSON)" });
+      }
     }
 
+    const { token, taps } = body || {};
     if (!token) {
       return res.status(401).json({ ok: false, error: "Falta token" });
     }
@@ -37,12 +40,12 @@ export default async function handler(req, res) {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (e) {
+    } catch {
       return res.status(401).json({ ok: false, error: "Token inválido" });
     }
     const userId = decoded.userId;
 
-    // 2. Recuperar estado en Redis
+    // 2. Recuperar estado desde Redis
     const raw = await redis.get(`user:${userId}`);
     if (!raw) {
       return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
@@ -50,18 +53,16 @@ export default async function handler(req, res) {
     const state = typeof raw === "string" ? JSON.parse(raw) : raw;
 
     // 3. Aplicar taps
-    let applied = 0;
     for (let i = 0; i < taps; i++) {
-      if (state.energy >= ENERGY_COST) {
-        state.energy -= ENERGY_COST;
-        state.wlgp += POWER_BASE;
-        applied++;
+      if (state.energy >= 1) {
+        state.energy -= 1;
+        state.wlgp += 0.1;
       } else {
         break;
       }
     }
 
-    // 4. Guardar nuevo estado en Redis
+    // 4. Guardar nuevo estado
     await redis.set(`user:${userId}`, JSON.stringify(state));
 
     // 5. Renovar token
@@ -70,6 +71,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, token: newToken, state });
   } catch (err) {
     console.error("tapBatch error:", err);
-    return res.status(500).json({ ok: false, error: "Error interno" });
+    return res.status(500).json({ ok: false, error: "Error interno en tapBatch" });
   }
 }
+
