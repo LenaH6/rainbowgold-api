@@ -79,7 +79,7 @@ export default async function handler(req, res) {
       const capacity = state.capacity || 100;
       const cost = capacity * 0.001; // 0.1% de capacidad
       state.energy = capacity;
-      state.wld = (state.wld || 0) + cost;
+      state.wld = (state.wld || 0) - cost;
     } else if (action === "ideas") {
       // Pago de ideas: siempre cuesta 1 WLD
       state.wld = (state.wld || 0) + 1;
