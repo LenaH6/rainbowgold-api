@@ -18,12 +18,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { token, taps } = req.body || {};
-    if (!token || typeof taps !== "number") {
-      return res.status(400).json({ ok: false, error: "Payload inválido" });
+    // Validar body de forma segura
+    let token, taps;
+    try {
+      ({ token, taps } = req.body || {});
+    } catch (e) {
+      return res.status(400).json({ ok: false, error: "Body inválido" });
     }
 
-    // 1. Verificar el token
+    if (!token) {
+      return res.status(401).json({ ok: false, error: "Falta token" });
+    }
+    if (typeof taps !== "number") {
+      return res.status(400).json({ ok: false, error: "Falta número de taps" });
+    }
+
+    // 1. Verificar token JWT
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -51,7 +61,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4. Guardar de nuevo en Redis
+    // 4. Guardar nuevo estado en Redis
     await redis.set(`user:${userId}`, JSON.stringify(state));
 
     // 5. Renovar token
