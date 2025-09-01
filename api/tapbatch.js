@@ -9,7 +9,7 @@ const redis = new Redis({
 });
 
 // Config base
-const POWER_BASE = 0.1;  // cada tap suma 0.1 WLGp
+const POWER_BASE = 0.1000;  // cada tap suma 0.1 WLGp
 const ENERGY_COST = 1;   // cada tap cuesta 1 de energía
 
 export default async function handler(req, res) {
