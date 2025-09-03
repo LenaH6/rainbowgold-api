@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     const state = typeof raw === "string" ? JSON.parse(raw) : raw;
 
     // 4. Aplicar lógica según el action
-    if (action === "worldgold") {
+    if (action === "rainbowgold") {
       // Refill: siempre restaura 100% de la capacidad
       const capacity = state.capacity || 100;
       const cost = capacity * 0.001; // 0.1% de capacidad
