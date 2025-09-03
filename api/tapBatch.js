@@ -70,7 +70,7 @@ export default async function handler(req, res) {
     for (let i = 0; i < taps; i++) {
       if (state.energy >= ENERGY_COST) {
         state.energy -= ENERGY_COST;
-        state.wlgp += POWER_BASE;
+        state.rbgp += POWER_BASE;
       } else {
         break;
       }

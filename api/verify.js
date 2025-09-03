@@ -29,7 +29,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         app_id: process.env.WORLD_ID_APP_ID,
-        action: body.action || "worldgold",
+        action: body.action || "rainbowgold",
         signal: body.nullifier_hash,
         proof: body.proof || {},
       }),
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     const userId = body.nullifier_hash;
 
     // 2. Estado inicial del usuario
-    const initialState = { wld: 0, wlgp: 0, energy: 100 };
+    const initialState = { wld: 0, rbgp: 0, energy: 100 };
 
     // 3. Guardar en Redis (como string)
     await redis.set(`user:${userId}`, JSON.stringify(initialState));
