@@ -15,8 +15,6 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-    console.log("Verify request:", body);
-
 
     // Solo aceptar la acción de login
     if (body.action && body.action !== "rainbowgold_login") {
