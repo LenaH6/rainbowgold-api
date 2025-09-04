@@ -1,13 +1,14 @@
 export default async function handler(req, res) {
-    // --- CORS ---
+  // --- CORS ---
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-   // 👇 nuevo: manejo de preflight
+
   if (req.method === "OPTIONS") {
     res.status(200).end();
     return;
   }
+
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Método no permitido" });
   }
@@ -15,7 +16,11 @@ export default async function handler(req, res) {
   try {
     const body = req.body || {};
 
-    // Si no trae payload, abortamos aquí
+    // Solo aceptar la acción de login
+    if (body.action && body.action !== "rainbowgold_login") {
+      return res.status(400).json({ ok: false, error: "Acción inválida para login" });
+    }
+
     if (!body.nullifier_hash) {
       return res.status(400).json({ ok: false, error: "Payload vacío o inválido" });
     }
@@ -29,7 +34,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         app_id: process.env.WORLD_ID_APP_ID,
-        action: body.action || "rainbowgold",
+        action: "rainbowgold_login",   // 👈 siempre fijo
         signal: body.nullifier_hash,
         proof: body.proof || {},
       }),
@@ -45,7 +50,7 @@ export default async function handler(req, res) {
     // 2. Estado inicial del usuario
     const initialState = { wld: 0, rbgp: 0, energy: 100 };
 
-    // 3. Guardar en Redis (como string)
+    // 3. Guardar en Redis
     await redis.set(`user:${userId}`, JSON.stringify(initialState));
 
     // 4. Generar token firmado
@@ -57,3 +62,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: "Error interno" });
   }
 }
+

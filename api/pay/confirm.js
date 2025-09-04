@@ -10,15 +10,15 @@ const redis = new Redis({
 });
 
 export default async function handler(req, res) {
-    // --- CORS ---
+  // --- CORS ---
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  // 👇 nuevo: manejo de preflight
+
   if (req.method === "OPTIONS") {
     res.status(200).end();
     return;
-  } 
+  }
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Método no permitido" });
   }
@@ -55,7 +55,12 @@ export default async function handler(req, res) {
     }
     const userId = decoded.userId;
 
-    // 2. Validar el pago con World App
+    // 2. Aceptar solo acciones válidas para pagos
+    if (action !== "rainbowgold" && action !== "ideas") {
+      return res.status(400).json({ ok: false, error: "Acción inválida para pagos" });
+    }
+
+    // 3. Validar el pago con World App
     const verifyRes = await fetch("https://developer.worldcoin.org/api/v1/verify", {
       method: "POST",
       headers: {
@@ -64,7 +69,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         app_id: process.env.WORLD_ID_APP_ID,
-        action,
+        action, // ya sabemos que es seguro: refill o ideas
         signal: nullifier_hash || userId,
         proof,
       }),
@@ -75,18 +80,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Pago no válido" });
     }
 
-    // 3. Recuperar estado en Redis
+    // 4. Recuperar estado en Redis
     const raw = await redis.get(`user:${userId}`);
     if (!raw) {
       return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
     }
     const state = typeof raw === "string" ? JSON.parse(raw) : raw;
 
-    // 4. Aplicar lógica según el action
+    // 5. Aplicar lógica según el action
     if (action === "rainbowgold") {
       // Refill: siempre restaura 100% de la capacidad
       const capacity = state.capacity || 100;
-      const cost = capacity * 0.001; // 0.1% de capacidad
+      const cost = capacity * 0.001; // 0.1% de capacidad como costo simbólico
       state.energy = capacity;
       state.wld = (state.wld || 0) + cost;
     } else if (action === "ideas") {
@@ -94,10 +99,10 @@ export default async function handler(req, res) {
       state.wld = (state.wld || 0) + 1;
     }
 
-    // 5. Guardar estado en Redis
+    // 6. Guardar estado en Redis
     await redis.set(`user:${userId}`, JSON.stringify(state));
 
-    // 6. Renovar token
+    // 7. Renovar token
     const newToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
     return res.status(200).json({ ok: true, token: newToken, state });
