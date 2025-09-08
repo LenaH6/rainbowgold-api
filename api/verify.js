@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       try { body = JSON.parse(body); }
       catch { return res.status(400).json({ ok:false, error:"Body no es JSON válido" }); }
     }
-
+    console.log("Payload recibido en backend:", JSON.stringify(body));
     // En v2: el front ya manda el payload correcto (finalPayload de MiniKit).
     // Solo validamos campos mínimos y NO forzamos action fijo.
     const { action, nullifier_hash } = body;
