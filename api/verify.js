@@ -34,6 +34,10 @@ export default async function handler(req, res) {
     }
 
     // Llamada a Worldcoin v2: /api/v2/verify/{app_id}
+    const payload = body?.payload ?? body;
+    const actionFinal = body?.action ?? payload?.action;
+    const signal = body?.signal ?? undefined;
+
     const resp = await fetch(
       `https://developer.worldcoin.org/api/v2/verify/${process.env.WORLD_ID_APP_ID}`,
       {
@@ -43,10 +47,11 @@ export default async function handler(req, res) {
           "User-Agent": "rainbowgold-api/1.0",
           Authorization: `Bearer ${process.env.WORLD_ID_APP_SECRET}`,
         },
-        // reenviamos el payload del front tal cual (finalPayload)
-        body: JSON.stringify(body),
+        body: JSON.stringify({ payload, action: actionFinal, signal })
       }
     );
+
+
 
     const ct = resp.headers.get("content-type") || "";
     if (!ct.includes("application/json")) {
