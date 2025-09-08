@@ -1,7 +1,6 @@
 // /api/verify.js
 import jwt from "jsonwebtoken";
 import { Redis } from "@upstash/redis";
-import fetch from "cross-fetch";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_URL,
@@ -9,40 +8,42 @@ const redis = new Redis({
 });
 
 export default async function handler(req, res) {
-  // --- CORS ---
+  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") {
-    res.status(200).end();
-    return;
-  }
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Método no permitido" });
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ ok:false, error:"Método no permitido" });
 
   try {
-    // Normalizar body
+    // Body seguro
     let body = req.body;
-    if (!body) return res.status(400).json({ ok: false, error: "Body vacío" });
+    if (!body) return res.status(400).json({ ok:false, error:"Body vacío" });
     if (typeof body === "string") {
       try { body = JSON.parse(body); }
-      catch { return res.status(400).json({ ok: false, error: "Body no es JSON válido" }); }
+      catch { return res.status(400).json({ ok:false, error:"Body no es JSON válido" }); }
     }
 
     const { action, nullifier_hash, proof } = body;
 
-    // Aceptamos solo la acción de login
     if (action && action !== "rainbowgold_login") {
-      return res.status(400).json({ ok: false, error: "Acción inválida para login" });
+      return res.status(400).json({ ok:false, error:"Acción inválida para login" });
     }
     if (!nullifier_hash) {
-      return res.status(400).json({ ok: false, error: "Falta nullifier_hash" });
+      return res.status(400).json({ ok:false, error:"Falta nullifier_hash" });
     }
 
-    // 1) Verificar con la API oficial de Worldcoin
-    const verifyRes = await fetch("https://developer.worldcoin.org/api/v1/verify", {
+    // Validación rápida de ENV
+    if (!process.env.WORLD_ID_APP_ID || !process.env.WORLD_ID_APP_SECRET) {
+      console.error("ENV World ID incompletas", {
+        hasAppId: !!process.env.WORLD_ID_APP_ID,
+        hasSecret: !!process.env.WORLD_ID_APP_SECRET,
+      });
+      return res.status(500).json({ ok:false, error:"Config World ID incompleta" });
+    }
+
+    // 1) Llamada a Worldcoin
+    const resp = await fetch("https://developer.worldcoin.org/api/v1/verify", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -55,26 +56,40 @@ export default async function handler(req, res) {
         proof: proof || {},
       }),
     });
-    const data = await verifyRes.json();
-    if (!data.success) {
-      return res.status(400).json({ ok: false, error: "Verificación inválida" });
+
+    const ct = resp.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      const txt = await resp.text();
+      console.error("Worldcoin no devolvió JSON", {
+        status: resp.status,
+        ct,
+        bodySnippet: txt.slice(0, 300),
+      });
+      return res.status(502).json({ ok:false, error:`Worldcoin ${resp.status} no-json` });
     }
 
-    // 2) Identidad del usuario = nullifier
+    const data = await resp.json();
+
+    if (!data?.success) {
+      // Aquí ya es JSON: verificación inválida normal (proof malo, etc.)
+      return res.status(400).json({ ok:false, error:"Verificación inválida", details: data });
+    }
+
+    // 2) Crear estado y guardar
     const userId = nullifier_hash;
-
-    // 3) Estado inicial
     const initialState = { wld: 0, rbgp: 0, energy: 100, capacity: 100 };
-
-    // 4) Persistir en Redis
     await redis.set(`user:${userId}`, JSON.stringify(initialState));
 
-    // 5) Token de sesión (1h)
+    // 3) Token
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET faltante");
+      return res.status(500).json({ ok:false, error:"Config JWT incompleta" });
+    }
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-    return res.status(200).json({ ok: true, token, state: initialState });
+    return res.status(200).json({ ok:true, token, state: initialState });
   } catch (err) {
     console.error("Verify error:", err);
-    return res.status(500).json({ ok: false, error: "Error interno" });
+    return res.status(500).json({ ok:false, error:"Error interno" });
   }
 }
