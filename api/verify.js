@@ -43,19 +43,26 @@ export default async function handler(req, res) {
     }
 
     // 1) Llamada a Worldcoin
-    const resp = await fetch("https://developer.worldcoin.org/api/v1/verify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.WORLD_ID_APP_SECRET}`,
-      },
-      body: JSON.stringify({
-        app_id: process.env.WORLD_ID_APP_ID,
-        action: "rainbowgold_login",
-        signal: nullifier_hash,
-        proof: proof || {},
-      }),
-    });
+const resp = await fetch(
+  `https://developer.worldcoin.org/api/v2/verify/${process.env.WORLD_ID_APP_ID}`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // Recomendado por docs:
+      "User-Agent": "rainbowgold-api/1.0",
+      Authorization: `Bearer ${process.env.WORLD_ID_APP_SECRET}`,
+    },
+    body: JSON.stringify({
+      // v2: el app_id va en la URL; aquí ya no hace falta
+      // app_id: process.env.WORLD_ID_APP_ID,  <-- quitar
+      action: "rainbowgold_login",
+      signal: nullifier_hash,
+      proof: proof || {},
+    }),
+  }
+);
+
 
     const ct = resp.headers.get("content-type") || "";
     if (!ct.includes("application/json")) {

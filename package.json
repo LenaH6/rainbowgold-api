@@ -4,8 +4,6 @@
   "type": "module",
   "dependencies": {
     "@upstash/redis": "^1.22.0",
-    "jsonwebtoken": "^9.0.2",
-    "cross-fetch": "^3.1.8"
+    "jsonwebtoken": "^9.0.2"
   }
 }
-
