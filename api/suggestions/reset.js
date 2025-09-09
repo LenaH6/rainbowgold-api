@@ -7,6 +7,19 @@ const redis = new Redis({
 });
 
 export default async function handler(req, res) {
+// --- CORS (inserted) ---
+const ORIGIN = process.env.ALLOWED_ORIGIN || "https://rainbowgold-app.vercel.app";
+res.setHeader("Access-Control-Allow-Origin", ORIGIN);
+res.setHeader("Vary", "Origin");
+res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+if (req.method === "OPTIONS") {
+  res.status(204).end();
+  return;
+}
+// --- end CORS ---
+
+
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Método no permitido" });
   }
