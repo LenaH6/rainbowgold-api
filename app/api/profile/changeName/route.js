@@ -9,16 +9,6 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_TOKEN,
 });
 
-// ---- ORIGINAL HANDLER BODY (lightly adapted) ----
-// /api/profile/changeName.js
-import jwt from "jsonwebtoken";
-import { Redis } from "@upstash/redis";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_URL,
-  token: process.env.UPSTASH_REDIS_TOKEN,
-});
-
 export default async function handler(req, res) {
 // --- CORS (inserted) ---
 const ORIGIN = process.env.ALLOWED_ORIGIN || "https://rainbowgold-app.vercel.app";
