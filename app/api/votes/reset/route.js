@@ -1,36 +1,19 @@
-// Auto-migrated from api/votes/reset.js
-// Next.js App Router route
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { Redis } from '@upstash/redis';
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_URL,
-  token: process.env.UPSTASH_REDIS_TOKEN,
-});
-
-// ---- ORIGINAL HANDLER BODY (lightly adapted) ----
-// /api/votes/reset.js
-import { Redis } from "@upstash/redis";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_URL,
-  token: process.env.UPSTASH_REDIS_TOKEN,
-});
+import { redis, keys } from '@/lib/db';
 
 export default async function handler(req, res) {
-// --- CORS (inserted) ---
-const ORIGIN = process.env.ALLOWED_ORIGIN || "https://rainbowgold-app.vercel.app";
-res.setHeader("Access-Control-Allow-Origin", ORIGIN);
-res.setHeader("Vary", "Origin");
-res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-if (req.method === "OPTIONS") {
-  res.status(204).end();
-  return;
-}
-// --- end CORS ---
-
+  // --- CORS (inserted) ---
+  const ORIGIN = process.env.ALLOWED_ORIGIN || "https://rainbowgold-app.vercel.app";
+  res.setHeader("Access-Control-Allow-Origin", ORIGIN);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  // --- end CORS ---
 
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Método no permitido" });
@@ -54,7 +37,6 @@ if (req.method === "OPTIONS") {
   }
 }
 
-
 // ---- Adapter layer: emulate (req,res) over NextRequest ----
 function ok(json) { return NextResponse.json(json, { status: 200, headers: corsHeaders() }); }
 function bad(status, json) { return NextResponse.json(json, { status, headers: corsHeaders() }); }
@@ -69,7 +51,6 @@ function corsHeaders() {
 export async function OPTIONS() { return new NextResponse(null, { status: 200, headers: corsHeaders() }); }
 
 export async function GET(req) {
-  // Some legacy endpoints used GET for listing; call "handler" if present
   try {
     const url = new URL(req.url);
     const query = Object.fromEntries(url.searchParams);
@@ -92,7 +73,6 @@ export async function POST(req) {
     const legacyReq = { method:'POST', headers:Object.fromEntries(req.headers), body: json };
     const ret = await handler(legacyReq, res);
     if (ret && ret.__nextResponse) return ret.__nextResponse;
-    // If legacy handler wrote to res, that response is already returned
     return ok({ ok:true, note:'POST handled by adapter.' });
   } catch (e) {
     console.error(e);
