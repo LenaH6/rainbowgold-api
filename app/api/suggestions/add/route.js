@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyJwt, getBearer } from '@/lib/auth';
 import { redis, keys } from '@/lib/db';
-
 export async function POST(req){
   try{
     const token = getBearer(req);

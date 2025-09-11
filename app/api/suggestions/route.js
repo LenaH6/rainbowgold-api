@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { verifyJwt } from '@/lib/auth';
 import { redis, keys } from '@/lib/db';
 import { isAdmin } from '@/lib/admin';
-
 export async function GET(req) {
   const list = await redis.lrange(keys.suggestions, 0, -1);
   const items = list.map(s => JSON.parse(s));

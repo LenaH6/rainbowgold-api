@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyJwt } from '@/lib/auth';
 import { redis, keys } from '@/lib/db';
-
-/**
- * Confirms a payment after MiniKit returns success client-side OR via webhook (future).
- * Expected body: { orderId: string, txHash?: string, chain?: string, status?: 'confirmed'|'failed' }
- * Marks order as confirmed and appends a tx record to tx:<userId>
- */
 export async function POST(req) {
   try {
     const token = (req.headers.get('authorization')||'').split(' ')[1];

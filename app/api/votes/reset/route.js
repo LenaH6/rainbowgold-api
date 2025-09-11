@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { redis, keys } from '@/lib/db';
-
 export default async function handler(req, res) {
   // --- CORS (inserted) ---
   const ORIGIN = process.env.ALLOWED_ORIGIN || "https://rainbowgold-app.vercel.app";

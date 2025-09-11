@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getBearer, verifyJwt } from '@/lib/auth';
 import { redis, keys } from '@/lib/db';
-
-/**
- * Creates a payment order for MiniKit.
- * Expected body: { amount: string, currency: 'WORLD'|'USDC'|string, memo?: string }
- * Stores order under orders:<userId>
- */
 export async function POST(req) {
   try {
     const token = (req.headers.get('authorization')||'').split(' ')[1];
