@@ -3,16 +3,6 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { Redis } from '@upstash/redis';
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_URL,
-  token: process.env.UPSTASH_REDIS_TOKEN,
-});
-
-// ---- ORIGINAL HANDLER BODY (lightly adapted) ----
-// /api/suggestions/list.js
-import { Redis } from "@upstash/redis";
-
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_URL,
   token: process.env.UPSTASH_REDIS_TOKEN,
