@@ -1,116 +1,42 @@
-// Auto-migrated from api/suggestions/reset.js
-// Next.js App Router route
+// app/api/suggestions/reset/route.js
 import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { Redis } from '@upstash/redis';
+import { redis, keys } from '@/lib/db';
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_URL,
-  token: process.env.UPSTASH_REDIS_TOKEN,
-});
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-// ---- ORIGINAL HANDLER BODY (lightly adapted) ----
-// /api/suggestions/reset.js
-import { Redis } from "@upstash/redis";
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_URL,
-  token: process.env.UPSTASH_REDIS_TOKEN,
-});
-
-export default async function handler(req, res) {
-// --- CORS (inserted) ---
-const ORIGIN = process.env.ALLOWED_ORIGIN || "https://rainbowgold-app.vercel.app";
-res.setHeader("Access-Control-Allow-Origin", ORIGIN);
-res.setHeader("Vary", "Origin");
-res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-if (req.method === "OPTIONS") {
-  res.status(204).end();
-  return;
-}
-// --- end CORS ---
-
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Método no permitido" });
-  }
-
-  try {
-    const { key } = req.query;
-
-    if (key !== process.env.ADMIN_KEY) {
-      return res.status(403).json({ ok: false, error: "No autorizado" });
-    }
-
-    // Borrar todas las sugerencias
-    await redis.del("suggestions");
-
-    return res.status(200).json({ ok: true, message: "Sugerencias reiniciadas" });
-  } catch (err) {
-    console.error("suggestions/reset error:", err);
-    return res.status(500).json({ ok: false, error: "Error interno" });
-  }
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: CORS });
 }
 
-
-// ---- Adapter layer: emulate (req,res) over NextRequest ----
-function ok(json) { return NextResponse.json(json, { status: 200, headers: corsHeaders() }); }
-function bad(status, json) { return NextResponse.json(json, { status, headers: corsHeaders() }); }
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  };
-}
-
-export async function OPTIONS() { return new NextResponse(null, { status: 200, headers: corsHeaders() }); }
-
-export async function GET(req) {
-  // Some legacy endpoints used GET for listing; call "handler" if present
-  try {
-    const url = new URL(req.url);
-    const query = Object.fromEntries(url.searchParams);
-    const body = null;
-    const res = createRes();
-    const legacyReq = { method:'GET', headers:Object.fromEntries(req.headers), query, body };
-    const ret = await handler(legacyReq, res);
-    if (ret && ret.__nextResponse) return ret.__nextResponse;
-    return ok({ ok:true, note:'GET handled by adapter but original handler may expect POST.' });
-  } catch (e) {
-    console.error(e);
-    return bad(500, { ok:false, error:'GET adapter error' });
-  }
+export async function GET() {
+  return NextResponse.json({ ok: false, error: 'method_not_allowed' }, { status: 405, headers: CORS });
 }
 
 export async function POST(req) {
   try {
-    const json = req.headers.get('content-type')?.includes('application/json') ? await req.json() : null;
-    const res = createRes();
-    const legacyReq = { method:'POST', headers:Object.fromEntries(req.headers), body: json };
-    const ret = await handler(legacyReq, res);
-    if (ret && ret.__nextResponse) return ret.__nextResponse;
-    // If legacy handler wrote to res, that response is already returned
-    return ok({ ok:true, note:'POST handled by adapter.' });
-  } catch (e) {
-    console.error(e);
-    return bad(500, { ok:false, error:'POST adapter error' });
+    const url = new URL(req.url);
+    const qKey = url.searchParams.get('key');
+    const body = req.headers.get('content-type')?.includes('application/json')
+      ? await req.json().catch(() => ({}))
+      : {};
+    const key = body?.key ?? qKey;
+
+    if (key !== process.env.ADMIN_KEY) {
+      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 403, headers: CORS });
+    }
+
+    await redis.del(keys.suggestions || 'suggestions');
+
+    return NextResponse.json({ ok: true, message: 'Sugerencias reiniciadas' }, { status: 200, headers: CORS });
+  } catch (err) {
+    console.error('suggestions/reset error:', err);
+    return NextResponse.json({ ok: false, error: 'server_error' }, { status: 500, headers: CORS });
   }
-}
-
-function createRes() {
-  const res = {
-    statusCode: 200,
-    headers: {},
-
-    setHeader(k,v) { this.headers[k]=v; },
-    status(s) { this.statusCode = s; return this; },
-    json(obj) { 
-      const r = NextResponse.json(obj, { status: this.statusCode, headers: {...corsHeaders(), ...this.headers} });
-      return { __nextResponse: r };
-    },
-    end() { const r = new NextResponse(null, { status: this.statusCode, headers: {...corsHeaders(), ...this.headers} }); return { __nextResponse: r }; }
-  };
-  return res;
 }
