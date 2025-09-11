@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
+  // Mantengo compatibilidad: esta ruta se usa con POST
   return NextResponse.json(
     { ok: false, error: 'use_post', info: 'POST /api/verify proxyea a /api/minikit/verify' },
     { status: 405, headers: CORS }
@@ -27,11 +28,14 @@ export async function POST(req) {
       ? await req.json().catch(() => ({}))
       : {};
 
-    // Proxy interno a la ruta correcta del mismo proyecto
-    const r = await fetch(new URL('/api/minikit/verify', req.url).toString(), {
+    // Proxy interno al handler bueno
+    const target = new URL('/api/minikit/verify', req.url).toString();
+
+    const r = await fetch(target, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
+      cache: 'no-store',
     });
 
     const data = await r.json().catch(() => ({}));
