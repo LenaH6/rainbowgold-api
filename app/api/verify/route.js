@@ -14,132 +14,34 @@ export async function OPTIONS() {
 
 export async function POST(req) {
   try {
-    console.log('🔍 MiniKit verify endpoint called');
-    
-    const body = await req.json();
-    console.log('📥 Request body:', JSON.stringify(body));
+    const { action, proof, merkle_root, nullifier_hash, verification_level, signal = "" } = await req.json();
 
-    // Extraer datos del payload de MiniKit
-    const { action, signal, payload } = body;
-    
-    if (!action) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: 'missing_action' 
-      }, { status: 400, headers: CORS });
+    if (!action || !proof || !merkle_root || !nullifier_hash || !verification_level) {
+      return NextResponse.json({ ok:false, error:'missing_fields' }, { status:400 });
     }
 
-    if (!payload || !payload.nullifier_hash) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: 'missing_nullifier_hash' 
-      }, { status: 400, headers: CORS });
+    const app_id   = process.env.WORLD_ID_APP_ID;
+    const endpoint = process.env.WORLD_ID_VERIFY_ENDPOINT || 'https://developer.worldcoin.org/api/v2/verify';
+
+    const vr = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ app_id, action, signal, proof, merkle_root, nullifier_hash, verification_level })
+    });
+
+    const res = await vr.json().catch(() => null);
+    if (!vr.ok || !res?.success) {
+      return NextResponse.json({ ok:false, error:'invalid_proof', detail:res }, { status:400 });
     }
 
-    console.log('🔐 Verifying with Worldcoin API...');
-
-    // Verificar con Worldcoin
-    if (process.env.WORLD_ID_APP_ID && process.env.WORLD_ID_APP_SECRET) {
-      try {
-        const worldcoinResponse = await fetch(
-          `https://developer.worldcoin.org/api/v2/verify/${process.env.WORLD_ID_APP_ID}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${process.env.WORLD_ID_APP_SECRET}`,
-            },
-            body: JSON.stringify({
-              action: action,
-              signal: signal || "",
-              payload: payload
-            })
-          }
-        );
-
-        const worldcoinData = await worldcoinResponse.json();
-        console.log('🌍 Worldcoin response:', worldcoinData);
-
-        if (!worldcoinData.success) {
-          return NextResponse.json({
-            ok: false,
-            error: 'worldcoin_verification_failed',
-            details: worldcoinData
-          }, { status: 400, headers: CORS });
-        }
-      } catch (worldcoinError) {
-        console.error('❌ Worldcoin API error:', worldcoinError);
-        // En desarrollo, continuar sin verificación
-        console.log('⚠️ Continuing without Worldcoin verification (dev mode)');
-      }
-    }
-
-    // Crear usuario único basado en nullifier_hash
-    const userId = payload.nullifier_hash;
-    
-    console.log('👤 User ID:', userId);
-
-    // Restaurar/crear estado del usuario
-    let userState = await redis.get(keys.user(userId));
-    if (typeof userState === 'string') {
-      try {
-        userState = JSON.parse(userState);
-      } catch {
-        userState = null;
-      }
-    }
-
-    if (!userState) {
-      console.log('🆕 Creating new user state');
-      userState = {
-        wld: 0,
-        rbgp: 0,
-        energy: 100,
-        capacity: 100,
-        created: Date.now()
-      };
-      await redis.set(keys.user(userId), JSON.stringify(userState));
-    }
-
-    console.log('🎮 User state:', userState);
-
-    // Crear JWT token
-    if (!process.env.JWT_SECRET) {
-      return NextResponse.json({
-        ok: false,
-        error: 'jwt_secret_not_configured'
-      }, { status: 500, headers: CORS });
-    }
-
-    const token = jwt.sign(
-      { 
-        sub: userId,
-        lvl: payload.verification_level || 'device',
-        iat: Math.floor(Date.now() / 1000)
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-
-    console.log('✅ Verification successful');
-
-    return NextResponse.json({
-      ok: true,
-      verified: true,
-      userId: userId,
-      token: token,
-      state: userState
-    }, { status: 200, headers: CORS });
-
-  } catch (error) {
-    console.error('💥 MiniKit verify error:', error);
-    return NextResponse.json({
-      ok: false,
-      error: 'internal_server_error',
-      message: error.message
-    }, { status: 500, headers: CORS });
+    // … tu lógica de sesión / redis / token …
+    return NextResponse.json({ ok:true, userId: nullifier_hash, token: signJwt({ sub:nullifier_hash, lvl:verification_level }) });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ ok:false, error:'server_error' }, { status:500 });
   }
 }
+
 
 export async function GET() {
   return NextResponse.json({
