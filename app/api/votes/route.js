@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyJwt } from '@/lib/auth';
 import { redis, keys } from '@/lib/db';
-
 export async function POST(req) {
   try {
     const token = (req.headers.get('authorization')||'').split(' ')[1];
