@@ -23,14 +23,14 @@ export async function GET(req) {
       return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 403, headers: CORS });
     }
 
-    const items = await redis.lrange(keys.suggestions, 0, 49);
+    const items = await redis.lrange(keys?.suggestions || 'suggestions', 0, 49);
     const suggestions = items
       .map((i) => { try { return JSON.parse(i); } catch { return null; } })
       .filter(Boolean);
 
     return NextResponse.json({ ok: true, suggestions }, { headers: CORS });
-  } catch (err) {
-    console.error('suggestions/list error:', err);
+  } catch (e) {
+    console.error('suggestions/list error:', e);
     return NextResponse.json({ ok: false, error: 'server_error' }, { status: 500, headers: CORS });
   }
 }

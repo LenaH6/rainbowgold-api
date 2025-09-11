@@ -34,18 +34,12 @@ export async function POST(req) {
     }
 
     const usernameRaw = (body.username || '').toString().trim();
-    if (!usernameRaw) {
-      return NextResponse.json({ ok: false, error: 'missing_username' }, { status: 400, headers: CORS });
-    }
-
-    // saneo y validación básica (ajusta si quieres otras reglas)
     const username = usernameRaw.replace(/[^\w\-\.]/g, '').slice(0, 20);
     if (username.length < 3) {
       return NextResponse.json({ ok: false, error: 'username_too_short' }, { status: 400, headers: CORS });
     }
 
     await redis.hset(keys.progress(userId), { username });
-
     return NextResponse.json({ ok: true, username }, { headers: CORS });
   } catch (e) {
     console.error('changeName error:', e);
